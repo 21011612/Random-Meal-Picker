@@ -1,4 +1,5 @@
 <img width="866" height="861" alt="image" src="https://github.com/user-attachments/assets/61e90693-4a5f-46a2-bc76-fce4e3df3832" />
+
 # Random Meal Picker – Random meal picker for groups
 
 A simple dApp that helps a group randomly pick a meal.  
