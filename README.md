@@ -64,180 +64,195 @@ random-meal-picker/
 ├─ package.json
 └─ tsconfig.json
 
-1. Requirements
+# 1. Requirements
 
 Make sure you have:
 
-Node.js >= 20.9.0
+- Node.js >= 20.9.0
+- npm (comes with Node.js)
+- IOTA CLI (iota binary) installed and configured
+- An IOTA wallet (e.g. browser extension) that can connect via dApp Kit
+- Access to devnet or testnet (depending on how you deploy)
 
-npm (comes with Node.js)
+---
 
-IOTA CLI (iota binary) installed and configured
+# 2. Installation & Local Development
 
-An IOTA wallet (e.g. browser extension) that can connect via dApp Kit
+## 2.1. Clone the repository
 
-Access to devnet or testnet (depending on how you deploy)
-
-2. Installation & Local Development
-2.1. Clone the repository
+```bash
 git clone https://github.com/21011612/Random-Meal-Picker.git
 cd Random-Meal-Picker
+```
 
-2.2. Install dependencies
+## 2.2. Install dependencies
+
+```bash
 npm install
 # or, if needed:
 # npm install --legacy-peer-deps
+```
 
-2.3. Start the Next.js dev server
+## 2.3. Start the Next.js dev server
+
+```bash
 npm run dev
-
+```
 
 The app will start on:
 
+```
 http://localhost:3000
-
+```
 
 Open this URL in your browser and connect your IOTA wallet.
 
-3. Smart Contract (Move) – meal_picker
+---
+
+# 3. Smart Contract (Move) – meal_picker
 
 The Move contract is located at:
 
+```
 contract/random_meal_picker/sources/meal_picker.move
+```
 
-3.1. Module & Types
+## 3.1. Module & Types
 
-Module: random_meal_picker::meal_picker
+**Module:** `random_meal_picker::meal_picker`
 
-Main struct:
+### Main struct:
 
+```move
 public struct MealChoice has key, store {
     id: UID,
     index: u64,
     seed: u64,
     user: address,
 }
+```
 
+### Entry function:
 
-Entry function:
-
+```move
 public fun pick_random(
     meal_count: u64,
     seed: u64,
     ctx: &mut tx_context::TxContext
 ) { /* ... */ }
+```
 
+### The contract:
 
-The contract:
+- Uses meal_count (number of meals on frontend) and a numeric seed.
+- Computes a pseudo-random number based on seed.
+- Calculates index = random_value % meal_count.
+- Creates a MealChoice object with { index, seed, user } and transfers it to the sender.
 
-Uses meal_count (number of meals on frontend) and a numeric seed.
+---
 
-Computes a pseudo-random number based on seed.
-
-Calculates index = random_value % meal_count.
-
-Creates a MealChoice object with { index, seed, user } and transfers it to the sender.
-
-4. Deploying the Move Contract
+# 4. Deploying the Move Contract
 
 This project comes with a helper script that builds and publishes the Move package to an IOTA network (devnet/testnet).
 
 From the project root:
 
+```bash
 npm run iota-deploy
-
+```
 
 You will be prompted for:
 
-Network – choose devnet or testnet.
-
-Address – continue with an existing address or create a new one.
+- Network – choose devnet or testnet.
+- Address – continue with an existing address or create a new one.
 
 The script:
 
-Builds the Move package under contract/random_meal_picker.
-
-Publishes it to the chosen IOTA network.
-
-Prints the Package ID.
-
-Updates lib/config.ts with the new package ID for the selected network.
-
-Updates INSTRUCTION_GUIDE.md and (if possible) integration hints.
+- Builds the Move package under contract/random_meal_picker.
+- Publishes it to the chosen IOTA network.
+- Prints the Package ID.
+- Updates lib/config.ts with the new package ID for the selected network.
+- Updates INSTRUCTION_GUIDE.md and (if possible) integration hints.
 
 After deployment, note:
 
-The Package ID (shown at the end of the script).
+- The Package ID (shown at the end of the script).
+- The network where it was deployed (devnet/testnet).
 
-The network where it was deployed (devnet/testnet).
+---
 
-5. Frontend Integration (React / Next.js)
-5.1. Providers
+# 5. Frontend Integration (React / Next.js)
+
+## 5.1. Providers
 
 In app/layout.tsx and components/Provider.tsx, the app is wrapped with:
 
-IotaClientProvider
-
-WalletProvider
-
-Theme from @radix-ui/themes
+- IotaClientProvider
+- WalletProvider
+- Theme from @radix-ui/themes
 
 These providers:
 
-Configure the IOTA JSON-RPC endpoint.
+- Configure the IOTA JSON-RPC endpoint.
+- Manage wallet connection state.
+- Provide styling and consistent UI theme.
 
-Manage wallet connection state.
+---
 
-Provide styling and consistent UI theme.
+## 5.2. Contract Hook – hooks/useContract.ts
 
-5.2. Contract Hook – hooks/useContract.ts
+useContract.ts centralizes all contract logic.
 
-useContract.ts centralizes all contract logic:
+### Configuration:
 
-Configuration:
-
+```ts
 export const CONTRACT_PACKAGE_ID = "<your-package-id>"; // updated by iota-deploy
 export const CONTRACT_MODULE = "meal_picker";
 export const CONTRACT_METHODS = {
   PICK_RANDOM: "pick_random",
 } as const;
+```
 
+### Data shape from chain:
 
-Data shape from chain:
-
+```ts
 export interface ContractData {
   index: number;
   seed: number;
   user: string;
 }
+```
 
+### Key responsibilities:
 
-Key responsibilities:
+Build a transaction:
 
-Build a transaction with Transaction from @iota/iota-sdk/transactions.
-
-Call:
-
+```ts
 tx.moveCall({
   arguments: [tx.pure.u64(mealCount), tx.pure.u64(seed)],
   target: `${packageId}::${CONTRACT_MODULE}::${CONTRACT_METHODS.PICK_RANDOM}`,
 });
-
+```
 
 Use useSignAndExecuteTransaction to sign and submit.
 
-Wait for confirmation via iotaClient.waitForTransaction.
+Wait for confirmation via `iotaClient.waitForTransaction`.
 
-Extract the created MealChoice object ID from transaction effects.
+Extract the created MealChoice object ID.
 
-Store mealChoiceId_<address> in localStorage.
+Store `mealChoiceId_<address>` in localStorage.
 
-Fetch the object later using useIotaClientQuery("getObject", ...).
+Fetch the object later using:
 
-Returned values:
+```ts
+useIotaClientQuery("getObject", ...)
+```
 
+### Returned values:
+
+```ts
 {
-  data,          // parsed MealChoice fields (index, seed, user) | null
+  data,
   actions: {
     pickRandomMeal(mealCount, seed),
     clearChoice(),
@@ -250,81 +265,72 @@ Returned values:
     hash,
     error,
   },
-  choiceId,      // on-chain object ID of the last MealChoice
+  choiceId,
   objectExists,
   hasValidData,
   isFetching,
 }
+```
 
-5.3. UI Component – components/sample.tsx
+---
 
-This is the main Random Meal Picker UI:
+## 5.3. UI Component – components/sample.tsx
 
-Checks wallet connection with useCurrentAccount().
+Main Random Meal Picker UI:
 
-If not connected:
+- Checks wallet connection with useCurrentAccount().
+- If not connected → show message.
+- If connected:
 
-Shows a message asking the user to connect their wallet.
+  - Meal list (index + emoji)
+  - Numeric seed input
+  - “🎲 Pick Meal” button
+  - If MealChoice exists:
+    - meal
+    - index
+    - seed
+    - MealChoice ID
+  - transaction hash
+  - confirmation status
+  - errors
 
-If connected:
+---
 
-Shows:
+# 6. How to Run the dApp Locally
 
-The fixed meal list (index + emoji name).
+## Install dependencies
 
-A numeric input for seed.
-
-A “🎲 Pick Meal” button that calls actions.pickRandomMeal(MEALS.length, seed).
-
-If a MealChoice exists:
-
-Displays the chosen meal, index, seed, and MealChoice ID.
-
-Also displays:
-
-Current transaction hash.
-
-Confirmation status.
-
-Any error messages from contract calls.
-
-6. How to Run the dApp Locally
-
-Install dependencies
-
+```bash
 npm install
+```
 
+## (Optional) Deploy contract
 
-(Optional) Deploy contract
-
-If you haven’t deployed your own version yet:
-
+```bash
 npm run iota-deploy
+```
 
+Choose a network.  
+Wait for script to complete.  
+Ensure `lib/config.ts` contains updated PACKAGE_ID.
 
-Choose a network (devnet or testnet).
+## Start the dev server
 
-Wait for the script to finish.
-
-Confirm that lib/config.ts now contains the correct PACKAGE_ID for that network.
-
-Start the dev server
-
+```bash
 npm run dev
+```
 
+## Open the app
 
-Open the app
+```
+http://localhost:3000
+```
 
-Go to http://localhost:3000.
+Connect your IOTA wallet via dApp Kit.  
+Enter any seed → press “🎲 Pick Meal”.
 
-Connect your IOTA wallet when prompted (via dApp Kit / wallet extension).
+The frontend will display:
 
-Enter any seed number you like and press “🎲 Pick Meal”.
-
-The frontend will show:
-
-The chosen meal (based on the on-chain index).
-
-The on-chain MealChoice ID.
-
-The transaction hash.
+- Chosen meal
+- MealChoice on-chain ID
+- Transaction hash
