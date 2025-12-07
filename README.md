@@ -1,5 +1,3 @@
-Contract Address (Testnet deloyment): 0x454f1cdaf772161f9ca6177ae5f6feda6e65c18f40c5e319aca891c959c92e70
-
 # Random Meal Picker – Random meal picker for groups
 
 A simple dApp that helps a group randomly pick a meal.  
