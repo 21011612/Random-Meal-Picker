@@ -1,0 +1,11 @@
+[package]
+name = "random_meal_picker"
+version = "0.0.1"
+edition = "2024"
+
+[dependencies]
+Iota = { git = "https://github.com/iotaledger/iota.git", subdir = "crates/iota-framework/packages/iota-framework", rev = "devnet" }
+
+[addresses]
+random_meal_picker = "0x0"
+
